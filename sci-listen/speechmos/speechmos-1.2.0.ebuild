@@ -17,10 +17,11 @@ SLOT="0"
 KEYWORDS="~amd64"
 REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 
-# torchaudio is bundled with sci-ml/pytorch
+# Pure Python package — torch/torchaudio are runtime deps but may be
+# installed via pip (e.g. in a venv). We don't hard-depend on Portage's
+# pytorch because it pulls in a heavy C++ build chain.
 RDEPEND="
 	${PYTHON_DEPS}
-	>=sci-ml/pytorch-2.0[${PYTHON_SINGLE_USEDEP}]
 "
 BDEPEND="
 	${PYTHON_DEPS}
@@ -38,6 +39,10 @@ src_install() {
 
 pkg_postinst() {
 	elog "SpeechMOS ${PV} installed."
+	elog ""
+	elog "Runtime requirements (install separately):"
+	elog "  torch (>=2.0) — pip install torch"
+	elog "  torchaudio    — pip install torchaudio"
 	elog ""
 	elog "Usage:"
 	elog "  import torch"
