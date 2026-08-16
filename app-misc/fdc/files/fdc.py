@@ -10,6 +10,7 @@ Usage:
   fdc get <fdc-id> [--format abridged|full] [--nutrients N,N,...]
   fdc get-multi <fdc-id> [<fdc-id> ...] [--format abridged|full] [--nutrients N,N,...]
   fdc list [--data-type ...] [--page-size N] [--page-number N] [--sort-by ...] [--sort-order asc|desc]
+  fdc nutrients <fdc-id> [--nutrients N,N,...] [--sort number|name|amount]
   fdc --help
 """
 
@@ -23,6 +24,26 @@ import urllib.error
 
 CONFIG_PATH = "/etc/fdc/api_key"
 BASE_URL = "https://api.nal.usda.gov/fdc/v1"
+
+# Common nutrient numbers -> short labels for a compact table
+COMMON_NUTRIENTS = {
+    "203": "Protein",
+    "204": "Fat",
+    "205": "Carbs",
+    "208": "Energy (kcal)",
+    "269": "Sugars",
+    "291": "Fiber",
+    "301": "Calcium",
+    "303": "Iron",
+    "307": "Sodium",
+    "306": "Potassium",
+    "401": "Vitamin C",
+    "318": "Vitamin A (IU)",
+    "601": "Cholesterol",
+    "606": "Saturated fat",
+    "645": "Monounsat. fat",
+    "646": "Polyunsat. fat",
+}
 
 
 def read_api_key():
@@ -143,6 +164,70 @@ def cmd_list(args):
     print(json.dumps(result, indent=2))
 
 
+def _fmt_amount(amount):
+    """Format a nutrient amount, trimming trailing zeros."""
+    if amount is None:
+        return "-"
+    if isinstance(amount, float):
+        return f"{amount:g}"
+    return str(amount)
+
+
+def cmd_nutrients(args):
+    """Print a readable table of nutrients per 100g."""
+    params = {"format": "full"}
+    if args.nutrients:
+        params["nutrients"] = args.nutrients
+
+    result = api_get(f"/food/{args.fdc_id}", params)
+
+    desc = result.get("description", "?")
+    print(f"{desc}  (FDC {args.fdc_id})")
+    print("=" * 60)
+    print("Nutrients per 100 g")
+    print("-" * 60)
+
+    rows = []
+    for n in result.get("foodNutrients", []):
+        nut = n.get("nutrient", {})
+        number = str(nut.get("number", ""))
+        name = nut.get("name", "")
+        amount = n.get("amount")
+        unit = n.get("unitName") or nut.get("unitName") or ""
+        rows.append((number, name, amount, unit))
+
+    # Filter to requested nutrients if given
+    if args.nutrients:
+        wanted = set(args.nutrients.split(","))
+        rows = [r for r in rows if r[0] in wanted]
+
+    # Sort
+    if args.sort == "name":
+        rows.sort(key=lambda r: r[1].lower())
+    elif args.sort == "amount":
+        rows.sort(key=lambda r: (r[2] is None, r[2] or 0))
+    else:  # number
+        rows.sort(key=lambda r: (not r[0].isdigit(), int(r[0]) if r[0].isdigit() else 0))
+
+    if not rows:
+        print("(no nutrient data)")
+        return
+
+    # Column widths
+    w_name = max(len(r[1]) for r in rows)
+    w_name = max(w_name, 4)
+    w_unit = max(len(r[3]) for r in rows)
+    w_unit = max(w_unit, 4)
+
+    print(f"{'Nutrient':<{w_name}}  {'Amount':>8}  {'Unit':<{w_unit}}")
+    print("-" * 60)
+    for number, name, amount, unit in rows:
+        label = COMMON_NUTRIENTS.get(number, name)
+        print(f"{label:<{w_name}}  {_fmt_amount(amount):>8}  {unit:<{w_unit}}")
+    print("-" * 60)
+    print("Amounts are per 100 g of the food as sold.")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Food Data Central (FDC) API CLI",
@@ -156,6 +241,9 @@ Examples:
   fdc get-multi 534358 373052 616350
   fdc list --data-type "SR Legacy" Foundation --page-size 20
   fdc list --sort-by lowercaseDescription.keyword --sort-order asc
+  fdc nutrients 534358
+  fdc nutrients 534358 --nutrients 203,204,208,269
+  fdc nutrients 534358 --sort amount
         """,
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -199,6 +287,14 @@ Examples:
                    help="Sort field")
     p.add_argument("--sort-order", default=None, choices=["asc", "desc"], help="Sort direction")
     p.set_defaults(func=cmd_list)
+
+    # nutrients
+    p = sub.add_parser("nutrients", help="Show nutrients per 100g as a readable table")
+    p.add_argument("fdc_id", help="FDC ID of the food item")
+    p.add_argument("--nutrients", default=None, help="Comma-separated nutrient numbers to show (e.g. 203,204,208)")
+    p.add_argument("--sort", default="number", choices=["number", "name", "amount"],
+                   help="Sort order (default: by nutrient number)")
+    p.set_defaults(func=cmd_nutrients)
 
     args = parser.parse_args()
     args.func(args)
