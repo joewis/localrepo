@@ -219,11 +219,20 @@ def cmd_nutrients(args):
     w_unit = max(len(r[3]) for r in rows)
     w_unit = max(w_unit, 4)
 
-    print(f"{'Nutrient':<{w_name}}  {'Amount':>8}  {'Unit':<{w_unit}}")
-    print("-" * 60)
-    for number, name, amount, unit in rows:
-        label = COMMON_NUTRIENTS.get(number, name)
-        print(f"{label:<{w_name}}  {_fmt_amount(amount):>8}  {unit:<{w_unit}}")
+    if args.codes:
+        # Show nutrient number + full name
+        w_num = max(len(r[0]) for r in rows)
+        w_num = max(w_num, 6)
+        print(f"{'Code':<{w_num}}  {'Nutrient':<{w_name}}  {'Amount':>8}  {'Unit':<{w_unit}}")
+        print("-" * 60)
+        for number, name, amount, unit in rows:
+            print(f"{number:<{w_num}}  {name:<{w_name}}  {_fmt_amount(amount):>8}  {unit:<{w_unit}}")
+    else:
+        print(f"{'Nutrient':<{w_name}}  {'Amount':>8}  {'Unit':<{w_unit}}")
+        print("-" * 60)
+        for number, name, amount, unit in rows:
+            label = COMMON_NUTRIENTS.get(number, name)
+            print(f"{label:<{w_name}}  {_fmt_amount(amount):>8}  {unit:<{w_unit}}")
     print("-" * 60)
     print("Amounts are per 100 g of the food as sold.")
 
@@ -294,6 +303,8 @@ Examples:
     p.add_argument("--nutrients", default=None, help="Comma-separated nutrient numbers to show (e.g. 203,204,208)")
     p.add_argument("--sort", default="number", choices=["number", "name", "amount"],
                    help="Sort order (default: by nutrient number)")
+    p.add_argument("--codes", action="store_true",
+                   help="Show the nutrient code (number) and full name instead of short labels")
     p.set_defaults(func=cmd_nutrients)
 
     args = parser.parse_args()
