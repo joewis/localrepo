@@ -45,6 +45,145 @@ COMMON_NUTRIENTS = {
     "646": "Polyunsat. fat",
 }
 
+# Canonical USDA nutrient code -> (full name, unit). Used by `fdc codes`.
+NUTRIENT_CODES = {
+    "203": ("Protein", "g"),
+    "204": ("Total lipid (fat)", "g"),
+    "205": ("Carbohydrate, by difference", "g"),
+    "207": ("Ash", "g"),
+    "208": ("Energy", "kcal"),
+    "221": ("Alcohol, ethyl", "g"),
+    "255": ("Water", "g"),
+    "262": ("Caffeine", "mg"),
+    "263": ("Theobromine", "mg"),
+    "268": ("Energy", "kJ"),
+    "269": ("Total Sugars", "g"),
+    "291": ("Fiber, total dietary", "g"),
+    "300": ("Minerals", "mg"),
+    "301": ("Calcium, Ca", "mg"),
+    "303": ("Iron, Fe", "mg"),
+    "304": ("Magnesium, Mg", "mg"),
+    "305": ("Phosphorus, P", "mg"),
+    "306": ("Potassium, K", "mg"),
+    "307": ("Sodium, Na", "mg"),
+    "309": ("Zinc, Zn", "mg"),
+    "312": ("Copper, Cu", "mg"),
+    "315": ("Manganese, Mn", "mg"),
+    "317": ("Selenium, Se", "µg"),
+    "318": ("Vitamin A, IU", "IU"),
+    "319": ("Retinol", "µg"),
+    "320": ("Vitamin A, RAE", "µg"),
+    "321": ("Carotene, beta", "µg"),
+    "322": ("Carotene, alpha", "µg"),
+    "323": ("Vitamin E (alpha-tocopherol)", "mg"),
+    "324": ("Vitamin D (D2 + D3), International Units", "IU"),
+    "326": ("Vitamin D3 (cholecalciferol)", "µg"),
+    "328": ("Vitamin D (D2 + D3)", "µg"),
+    "334": ("Cryptoxanthin, beta", "µg"),
+    "337": ("Lycopene", "µg"),
+    "338": ("Lutein + zeaxanthin", "µg"),
+    "341": ("Tocopherol, beta", "mg"),
+    "342": ("Tocopherol, gamma", "mg"),
+    "343": ("Tocopherol, delta", "mg"),
+    "344": ("Tocotrienol, alpha", "mg"),
+    "345": ("Tocotrienol, beta", "mg"),
+    "346": ("Tocotrienol, gamma", "mg"),
+    "347": ("Tocotrienol, delta", "mg"),
+    "401": ("Vitamin C, total ascorbic acid", "mg"),
+    "404": ("Thiamin", "mg"),
+    "405": ("Riboflavin", "mg"),
+    "406": ("Niacin", "mg"),
+    "410": ("Pantothenic acid", "mg"),
+    "415": ("Vitamin B-6", "mg"),
+    "417": ("Folate, total", "µg"),
+    "418": ("Vitamin B-12", "µg"),
+    "421": ("Choline, total", "mg"),
+    "428": ("Vitamin K (Menaquinone-4)", "µg"),
+    "429": ("Vitamin K (Dihydrophylloquinone)", "µg"),
+    "430": ("Vitamin K (phylloquinone)", "µg"),
+    "431": ("Folic acid", "µg"),
+    "432": ("Folate, food", "µg"),
+    "435": ("Folate, DFE", "µg"),
+    "454": ("Betaine", "mg"),
+    "500": ("Amino acids", "g"),
+    "501": ("Tryptophan", "g"),
+    "502": ("Threonine", "g"),
+    "503": ("Isoleucine", "g"),
+    "504": ("Leucine", "g"),
+    "505": ("Lysine", "g"),
+    "506": ("Methionine", "g"),
+    "507": ("Cystine", "g"),
+    "508": ("Phenylalanine", "g"),
+    "509": ("Tyrosine", "g"),
+    "510": ("Valine", "g"),
+    "511": ("Arginine", "g"),
+    "512": ("Histidine", "g"),
+    "513": ("Alanine", "g"),
+    "514": ("Aspartic acid", "g"),
+    "515": ("Glutamic acid", "g"),
+    "516": ("Glycine", "g"),
+    "517": ("Proline", "g"),
+    "518": ("Serine", "g"),
+    "573": ("Vitamin E, added", "mg"),
+    "578": ("Vitamin B-12, added", "µg"),
+    "601": ("Cholesterol", "mg"),
+    "605": ("Fatty acids, total trans", "g"),
+    "606": ("Fatty acids, total saturated", "g"),
+    "607": ("SFA 4:0", "g"),
+    "608": ("SFA 6:0", "g"),
+    "609": ("SFA 8:0", "g"),
+    "610": ("SFA 10:0", "g"),
+    "611": ("SFA 12:0", "g"),
+    "612": ("SFA 14:0", "g"),
+    "613": ("SFA 16:0", "g"),
+    "614": ("SFA 18:0", "g"),
+    "615": ("SFA 20:0", "g"),
+    "617": ("MUFA 18:1", "g"),
+    "618": ("PUFA 18:2", "g"),
+    "619": ("PUFA 18:3", "g"),
+    "620": ("PUFA 20:4", "g"),
+    "621": ("PUFA 22:6 n-3 (DHA)", "g"),
+    "624": ("SFA 22:0", "g"),
+    "625": ("MUFA 14:1", "g"),
+    "626": ("MUFA 16:1", "g"),
+    "627": ("PUFA 18:4", "g"),
+    "628": ("MUFA 20:1", "g"),
+    "629": ("PUFA 20:5 n-3 (EPA)", "g"),
+    "630": ("MUFA 22:1", "g"),
+    "631": ("PUFA 22:5 n-3 (DPA)", "g"),
+    "645": ("Fatty acids, total monounsaturated", "g"),
+    "646": ("Fatty acids, total polyunsaturated", "g"),
+    "652": ("SFA 15:0", "g"),
+    "653": ("SFA 17:0", "g"),
+    "654": ("SFA 24:0", "g"),
+    "662": ("TFA 16:1 t", "g"),
+    "663": ("TFA 18:1 t", "g"),
+    "664": ("TFA 22:1 t", "g"),
+    "665": ("TFA 18:2 t not further defined", "g"),
+    "670": ("PUFA 18:2 CLAs", "g"),
+    "671": ("MUFA 24:1 c", "g"),
+    "672": ("PUFA 20:2 n-6 c,c", "g"),
+    "673": ("MUFA 16:1 c", "g"),
+    "674": ("MUFA 18:1 c", "g"),
+    "675": ("PUFA 18:2 n-6 c,c", "g"),
+    "676": ("MUFA 22:1 c", "g"),
+    "685": ("PUFA 18:3 n-6 c,c,c", "g"),
+    "687": ("MUFA 17:1", "g"),
+    "689": ("PUFA 20:3", "g"),
+    "693": ("Fatty acids, total trans-monoenoic", "g"),
+    "695": ("Fatty acids, total trans-polyenoic", "g"),
+    "697": ("MUFA 15:1", "g"),
+    "851": ("PUFA 18:3 n-3 c,c,c (ALA)", "g"),
+    "852": ("PUFA 20:3 n-3", "g"),
+    "853": ("PUFA 20:3 n-6", "g"),
+    "856": ("PUFA 18:3i", "g"),
+    "858": ("PUFA 22:4", "g"),
+    "950": ("Lipids", "g"),
+    "951": ("Proximates", "g"),
+    "952": ("Vitamins and Other Components", "g"),
+    "956": ("Carbohydrates", "g"),
+}
+
 
 def read_api_key():
     """Read API key from config file, or return DEMO_KEY."""
@@ -237,6 +376,39 @@ def cmd_nutrients(args):
     print("Amounts are per 100 g of the food as sold.")
 
 
+def cmd_codes(args):
+    """List nutrient codes and names (no API call needed)."""
+    rows = [(code, name, unit) for code, (name, unit) in NUTRIENT_CODES.items()]
+
+    if args.query:
+        q = args.query.lower()
+        rows = [r for r in rows
+                if q in r[0] or q in r[1].lower()]
+
+    if args.sort == "name":
+        rows.sort(key=lambda r: r[1].lower())
+    else:  # number
+        rows.sort(key=lambda r: int(r[0]))
+
+    if not rows:
+        print(f"No nutrients match '{args.query}'")
+        return
+
+    w_code = max(len(r[0]) for r in rows)
+    w_code = max(w_code, 4)
+    w_name = max(len(r[1]) for r in rows)
+    w_name = max(w_name, 8)
+    w_unit = max(len(r[2]) for r in rows)
+    w_unit = max(w_unit, 4)
+
+    print(f"{'Code':<{w_code}}  {'Nutrient':<{w_name}}  {'Unit':<{w_unit}}")
+    print("-" * 60)
+    for code, name, unit in rows:
+        print(f"{code:<{w_code}}  {name:<{w_name}}  {unit:<{w_unit}}")
+    print("-" * 60)
+    print(f"{len(rows)} nutrient(s). Use the code with 'fdc nutrients <id> --nutrients <code>'.")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Food Data Central (FDC) API CLI",
@@ -306,6 +478,14 @@ Examples:
     p.add_argument("--codes", action="store_true",
                    help="Show the nutrient code (number) and full name instead of short labels")
     p.set_defaults(func=cmd_nutrients)
+
+    # codes
+    p = sub.add_parser("codes", help="List USDA nutrient codes and names (no API call)")
+    p.add_argument("query", nargs="?", default=None,
+                   help="Optional search term to filter by code or name (e.g. 'fiber', 'vitamin')")
+    p.add_argument("--sort", default="number", choices=["number", "name"],
+                   help="Sort order (default: by code number)")
+    p.set_defaults(func=cmd_codes)
 
     args = parser.parse_args()
     args.func(args)
