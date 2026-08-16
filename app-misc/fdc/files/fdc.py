@@ -3,15 +3,27 @@
 Food Data Central (FDC) API CLI wrapper.
 
 Reads API key from /etc/fdc/api_key (first line), or falls back to DEMO_KEY.
-Supports all FDC REST endpoints.
+Wraps the USDA Food Data Central REST API (https://api.nal.usda.gov/fdc/v1).
 
-Usage:
-  fdc search <query> [--data-type ...] [--page-size N] [--page-number N] [--brand-owner ...]
-  fdc get <fdc-id> [--format abridged|full] [--nutrients N,N,...]
-  fdc get-multi <fdc-id> [<fdc-id> ...] [--format abridged|full] [--nutrients N,N,...]
-  fdc list [--data-type ...] [--page-size N] [--page-number N] [--sort-by ...] [--sort-order asc|desc]
-  fdc nutrients <fdc-id> [--nutrients N,N,...] [--sort number|name|amount]
-  fdc --help
+Commands:
+  search      Search foods by keyword
+  get         Get a single food item by FDC ID
+  get-multi   Get multiple food items by FDC IDs
+  list        Paged list of foods (abridged format)
+  nutrients   Show nutrients per 100g as a table or JSON
+  codes       List USDA nutrient codes and names (no API call)
+  docs        Print this CLI's machine-readable API documentation (JSON)
+
+Every command accepts --json to emit machine-readable output for scripts/agents.
+Run `fdc docs` for the full machine-readable spec, or `fdc <cmd> --help` for
+per-command help.
+
+Examples:
+  fdc search "cheddar cheese"
+  fdc search "chicken breast" --data-type "SR Legacy" --nutrients 203,204,208
+  fdc nutrients 171077 --nutrients 203,204,208 --json
+  fdc codes fiber
+  fdc docs
 """
 
 import argparse
@@ -456,6 +468,158 @@ def cmd_codes(args):
     print(f"{len(rows)} nutrient(s). Use the code with 'fdc nutrients <id> --nutrients <code>'.")
 
 
+def cmd_docs(args):
+    """Print machine-readable API documentation for this CLI (JSON)."""
+    spec = {
+        "tool": "fdc",
+        "version": "1.1.5",
+        "description": "CLI wrapper for the USDA Food Data Central (FDC) API",
+        "api_base": BASE_URL,
+        "api_key_source": CONFIG_PATH,
+        "api_key_default": "DEMO_KEY",
+        "output_modes": {
+            "table": "Human-readable text (default)",
+            "json": "Machine-readable JSON (pass --json)",
+        },
+        "commands": {
+            "search": {
+                "summary": "Search foods by keyword",
+                "args": [
+                    {"name": "query", "required": True, "type": "string",
+                     "description": "Search query (e.g. 'cheddar cheese')"},
+                    {"name": "--data-type", "required": False, "type": "string[]",
+                     "choices": ["Branded", "Foundation", "Survey (FNDDS)", "SR Legacy"],
+                     "description": "Filter by data type(s)"},
+                    {"name": "--page-size", "required": False, "type": "int",
+                     "description": "Results per page (1-200)"},
+                    {"name": "--page-number", "required": False, "type": "int",
+                     "description": "Page number"},
+                    {"name": "--sort-by", "required": False, "type": "string",
+                     "choices": ["dataType.keyword", "lowercaseDescription.keyword", "fdcId", "publishedDate"],
+                     "description": "Sort field"},
+                    {"name": "--sort-order", "required": False, "type": "string",
+                     "choices": ["asc", "desc"], "description": "Sort direction"},
+                    {"name": "--brand-owner", "required": False, "type": "string",
+                     "description": "Filter by brand owner (Branded foods only)"},
+                    {"name": "--nutrients", "required": False, "type": "string",
+                     "description": "Show top result's nutrients per 100g (comma-separated codes, e.g. 203,204,208)"},
+                    {"name": "--sort", "required": False, "type": "string",
+                     "choices": ["number", "name", "amount"], "default": "number",
+                     "description": "Sort order for the nutrient table"},
+                    {"name": "--codes", "required": False, "type": "bool",
+                     "description": "Show nutrient code + full name in the nutrient table"},
+                    {"name": "--json", "required": False, "type": "bool",
+                     "description": "Output as JSON (for scripts/agents)"},
+                ],
+                "output": {
+                    "default": "Raw FDC search JSON, or a nutrient table when --nutrients is given",
+                    "json": "Structured nutrient object (see nutrients command) when --nutrients --json",
+                },
+            },
+            "get": {
+                "summary": "Get a single food item by FDC ID",
+                "args": [
+                    {"name": "fdc_id", "required": True, "type": "int",
+                     "description": "FDC ID of the food item"},
+                    {"name": "--format", "required": False, "type": "string",
+                     "choices": ["abridged", "full"], "description": "Response format"},
+                    {"name": "--nutrients", "required": False, "type": "string",
+                     "description": "Comma-separated nutrient numbers (e.g. 203,204)"},
+                    {"name": "--json", "required": False, "type": "bool",
+                     "description": "Output as JSON (for scripts/agents)"},
+                ],
+                "output": {"default": "Raw FDC food JSON", "json": "Raw FDC food JSON"},
+            },
+            "get-multi": {
+                "summary": "Get multiple food items by FDC IDs",
+                "args": [
+                    {"name": "fdc_ids", "required": True, "type": "int[]",
+                     "description": "FDC IDs (up to 20)"},
+                    {"name": "--format", "required": False, "type": "string",
+                     "choices": ["abridged", "full"], "description": "Response format"},
+                    {"name": "--nutrients", "required": False, "type": "string",
+                     "description": "Comma-separated nutrient numbers (e.g. 203,204)"},
+                    {"name": "--json", "required": False, "type": "bool",
+                     "description": "Output as JSON (for scripts/agents)"},
+                ],
+                "output": {"default": "Raw FDC foods JSON", "json": "Raw FDC foods JSON"},
+            },
+            "list": {
+                "summary": "Paged list of foods (abridged format)",
+                "args": [
+                    {"name": "--data-type", "required": False, "type": "string[]",
+                     "choices": ["Branded", "Foundation", "Survey (FNDDS)", "SR Legacy"],
+                     "description": "Filter by data type(s)"},
+                    {"name": "--page-size", "required": False, "type": "int",
+                     "description": "Results per page (1-200)"},
+                    {"name": "--page-number", "required": False, "type": "int",
+                     "description": "Page number"},
+                    {"name": "--sort-by", "required": False, "type": "string",
+                     "choices": ["dataType.keyword", "lowercaseDescription.keyword", "fdcId", "publishedDate"],
+                     "description": "Sort field"},
+                    {"name": "--sort-order", "required": False, "type": "string",
+                     "choices": ["asc", "desc"], "description": "Sort direction"},
+                    {"name": "--json", "required": False, "type": "bool",
+                     "description": "Output as JSON (for scripts/agents)"},
+                ],
+                "output": {"default": "Raw FDC list JSON", "json": "Raw FDC list JSON"},
+            },
+            "nutrients": {
+                "summary": "Show nutrients per 100g as a table or JSON",
+                "args": [
+                    {"name": "fdc_id", "required": True, "type": "int",
+                     "description": "FDC ID of the food item"},
+                    {"name": "--nutrients", "required": False, "type": "string",
+                     "description": "Comma-separated nutrient numbers to show (e.g. 203,204,208)"},
+                    {"name": "--sort", "required": False, "type": "string",
+                     "choices": ["number", "name", "amount"], "default": "number",
+                     "description": "Sort order (default: by nutrient number)"},
+                    {"name": "--codes", "required": False, "type": "bool",
+                     "description": "Show nutrient code + full name instead of short labels"},
+                    {"name": "--json", "required": False, "type": "bool",
+                     "description": "Output as JSON (for scripts/agents)"},
+                ],
+                "output": {
+                    "default": "Human-readable nutrient table",
+                    "json": {
+                        "fdcId": "int",
+                        "description": "string",
+                        "per100g": "true",
+                        "nutrients": [
+                            {"code": "string", "name": "string", "amount": "number", "unit": "string"}
+                        ],
+                    },
+                },
+            },
+            "codes": {
+                "summary": "List USDA nutrient codes and names (no API call)",
+                "args": [
+                    {"name": "query", "required": False, "type": "string",
+                     "description": "Optional search term to filter by code or name (e.g. 'fiber', 'vitamin')"},
+                    {"name": "--sort", "required": False, "type": "string",
+                     "choices": ["number", "name"], "default": "number",
+                     "description": "Sort order (default: by code number)"},
+                    {"name": "--json", "required": False, "type": "bool",
+                     "description": "Output as JSON (for scripts/agents)"},
+                ],
+                "output": {
+                    "default": "Human-readable code table",
+                    "json": {
+                        "query": "string|null",
+                        "nutrients": [{"code": "string", "name": "string", "unit": "string"}],
+                    },
+                },
+            },
+            "docs": {
+                "summary": "Print this CLI's machine-readable API documentation (JSON)",
+                "args": [],
+                "output": {"default": "This JSON spec", "json": "This JSON spec"},
+            },
+        },
+    }
+    print(json.dumps(spec, indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Food Data Central (FDC) API CLI",
@@ -464,6 +628,7 @@ def main():
 Examples:
   fdc search "cheddar cheese"
   fdc search "apple" --data-type Foundation --page-size 5
+  fdc search "chicken breast" --data-type "SR Legacy" --nutrients 203,204,208
   fdc get 534358 --format full
   fdc get 534358 --nutrients 203,204,205
   fdc get-multi 534358 373052 616350
@@ -472,6 +637,14 @@ Examples:
   fdc nutrients 534358
   fdc nutrients 534358 --nutrients 203,204,208,269
   fdc nutrients 534358 --sort amount
+  fdc nutrients 534358 --json
+  fdc codes fiber
+  fdc codes --json
+  fdc docs
+
+Machine-readable output:
+  Every command accepts --json to emit JSON for scripts/agents.
+  Run `fdc docs` for the full machine-readable API spec.
         """,
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -545,6 +718,10 @@ Examples:
                    help="Sort order (default: by code number)")
     p.add_argument("--json", action="store_true", help="Output as JSON (for scripts/agents)")
     p.set_defaults(func=cmd_codes)
+
+    # docs
+    p = sub.add_parser("docs", help="Print this CLI's machine-readable API documentation (JSON)")
+    p.set_defaults(func=cmd_docs)
 
     args = parser.parse_args()
     args.func(args)
