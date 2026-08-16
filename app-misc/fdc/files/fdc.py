@@ -258,6 +258,19 @@ def cmd_search(args):
         params["brandOwner"] = args.brand_owner
 
     result = api_get("/foods/search", params)
+
+    # If --nutrients given, fetch the top result's full nutrient table
+    if args.nutrients:
+        foods = result.get("foods", [])
+        if not foods:
+            print("No foods found.", file=sys.stderr)
+            sys.exit(1)
+        top = foods[0]
+        fdc_id = top.get("fdcId")
+        full = api_get(f"/food/{fdc_id}", {"format": "full", "nutrients": args.nutrients})
+        _print_nutrients(full, fdc_id, args.nutrients, args.sort, args.codes)
+        return
+
     print(json.dumps(result, indent=2))
 
 
@@ -312,16 +325,10 @@ def _fmt_amount(amount):
     return str(amount)
 
 
-def cmd_nutrients(args):
-    """Print a readable table of nutrients per 100g."""
-    params = {"format": "full"}
-    if args.nutrients:
-        params["nutrients"] = args.nutrients
-
-    result = api_get(f"/food/{args.fdc_id}", params)
-
+def _print_nutrients(result, fdc_id, nutrients_filter=None, sort="number", codes=False):
+    """Print a readable table of nutrients per 100g from a food result dict."""
     desc = result.get("description", "?")
-    print(f"{desc}  (FDC {args.fdc_id})")
+    print(f"{desc}  (FDC {fdc_id})")
     print("=" * 60)
     print("Nutrients per 100 g")
     print("-" * 60)
@@ -336,14 +343,14 @@ def cmd_nutrients(args):
         rows.append((number, name, amount, unit))
 
     # Filter to requested nutrients if given
-    if args.nutrients:
-        wanted = set(args.nutrients.split(","))
+    if nutrients_filter:
+        wanted = set(nutrients_filter.split(","))
         rows = [r for r in rows if r[0] in wanted]
 
     # Sort
-    if args.sort == "name":
+    if sort == "name":
         rows.sort(key=lambda r: r[1].lower())
-    elif args.sort == "amount":
+    elif sort == "amount":
         rows.sort(key=lambda r: (r[2] is None, r[2] or 0))
     else:  # number
         rows.sort(key=lambda r: (not r[0].isdigit(), int(r[0]) if r[0].isdigit() else 0))
@@ -358,7 +365,7 @@ def cmd_nutrients(args):
     w_unit = max(len(r[3]) for r in rows)
     w_unit = max(w_unit, 4)
 
-    if args.codes:
+    if codes:
         # Show nutrient number + full name
         w_num = max(len(r[0]) for r in rows)
         w_num = max(w_num, 6)
@@ -374,6 +381,16 @@ def cmd_nutrients(args):
             print(f"{label:<{w_name}}  {_fmt_amount(amount):>8}  {unit:<{w_unit}}")
     print("-" * 60)
     print("Amounts are per 100 g of the food as sold.")
+
+
+def cmd_nutrients(args):
+    """Print a readable table of nutrients per 100g."""
+    params = {"format": "full"}
+    if args.nutrients:
+        params["nutrients"] = args.nutrients
+
+    result = api_get(f"/food/{args.fdc_id}", params)
+    _print_nutrients(result, args.fdc_id, args.nutrients, args.sort, args.codes)
 
 
 def cmd_codes(args):
@@ -441,6 +458,12 @@ Examples:
                    help="Sort field")
     p.add_argument("--sort-order", default=None, choices=["asc", "desc"], help="Sort direction")
     p.add_argument("--brand-owner", default=None, help="Filter by brand owner (Branded foods only)")
+    p.add_argument("--nutrients", default=None,
+                   help="Show the top result's nutrients per 100g (comma-separated codes, e.g. 203,204,208)")
+    p.add_argument("--sort", default="number", choices=["number", "name", "amount"],
+                   help="Sort order for the nutrient table (default: by nutrient number)")
+    p.add_argument("--codes", action="store_true",
+                   help="Show nutrient code + full name in the nutrient table")
     p.set_defaults(func=cmd_search)
 
     # get
