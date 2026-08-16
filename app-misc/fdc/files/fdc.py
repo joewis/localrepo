@@ -268,7 +268,7 @@ def cmd_search(args):
         top = foods[0]
         fdc_id = top.get("fdcId")
         full = api_get(f"/food/{fdc_id}", {"format": "full", "nutrients": args.nutrients})
-        _print_nutrients(full, fdc_id, args.nutrients, args.sort, args.codes)
+        _print_nutrients(full, fdc_id, args.nutrients, args.sort, args.codes, args.json)
         return
 
     print(json.dumps(result, indent=2))
@@ -325,14 +325,11 @@ def _fmt_amount(amount):
     return str(amount)
 
 
-def _print_nutrients(result, fdc_id, nutrients_filter=None, sort="number", codes=False):
-    """Print a readable table of nutrients per 100g from a food result dict."""
-    desc = result.get("description", "?")
-    print(f"{desc}  (FDC {fdc_id})")
-    print("=" * 60)
-    print("Nutrients per 100 g")
-    print("-" * 60)
+def _print_nutrients(result, fdc_id, nutrients_filter=None, sort="number", codes=False, as_json=False):
+    """Print a readable table of nutrients per 100g from a food result dict.
 
+    If as_json is True, emit a structured JSON object instead of a table.
+    """
     rows = []
     for n in result.get("foodNutrients", []):
         nut = n.get("nutrient", {})
@@ -354,6 +351,25 @@ def _print_nutrients(result, fdc_id, nutrients_filter=None, sort="number", codes
         rows.sort(key=lambda r: (r[2] is None, r[2] or 0))
     else:  # number
         rows.sort(key=lambda r: (not r[0].isdigit(), int(r[0]) if r[0].isdigit() else 0))
+
+    if as_json:
+        out = {
+            "fdcId": fdc_id,
+            "description": result.get("description", "?"),
+            "per100g": True,
+            "nutrients": [
+                {"code": number, "name": name, "amount": amount, "unit": unit}
+                for number, name, amount, unit in rows
+            ],
+        }
+        print(json.dumps(out, indent=2))
+        return
+
+    desc = result.get("description", "?")
+    print(f"{desc}  (FDC {fdc_id})")
+    print("=" * 60)
+    print("Nutrients per 100 g")
+    print("-" * 60)
 
     if not rows:
         print("(no nutrient data)")
@@ -390,7 +406,7 @@ def cmd_nutrients(args):
         params["nutrients"] = args.nutrients
 
     result = api_get(f"/food/{args.fdc_id}", params)
-    _print_nutrients(result, args.fdc_id, args.nutrients, args.sort, args.codes)
+    _print_nutrients(result, args.fdc_id, args.nutrients, args.sort, args.codes, args.json)
 
 
 def cmd_codes(args):
@@ -408,7 +424,21 @@ def cmd_codes(args):
         rows.sort(key=lambda r: int(r[0]))
 
     if not rows:
-        print(f"No nutrients match '{args.query}'")
+        if args.json:
+            print(json.dumps({"query": args.query, "nutrients": []}, indent=2))
+        else:
+            print(f"No nutrients match '{args.query}'")
+        return
+
+    if args.json:
+        out = {
+            "query": args.query,
+            "nutrients": [
+                {"code": code, "name": name, "unit": unit}
+                for code, name, unit in rows
+            ],
+        }
+        print(json.dumps(out, indent=2))
         return
 
     w_code = max(len(r[0]) for r in rows)
@@ -464,6 +494,7 @@ Examples:
                    help="Sort order for the nutrient table (default: by nutrient number)")
     p.add_argument("--codes", action="store_true",
                    help="Show nutrient code + full name in the nutrient table")
+    p.add_argument("--json", action="store_true", help="Output as JSON (for scripts/agents)")
     p.set_defaults(func=cmd_search)
 
     # get
@@ -471,6 +502,7 @@ Examples:
     p.add_argument("fdc_id", help="FDC ID of the food item")
     p.add_argument("--format", choices=["abridged", "full"], default=None, help="Response format")
     p.add_argument("--nutrients", default=None, help="Comma-separated nutrient numbers (e.g. 203,204)")
+    p.add_argument("--json", action="store_true", help="Output as JSON (for scripts/agents)")
     p.set_defaults(func=cmd_get)
 
     # get-multi
@@ -478,6 +510,7 @@ Examples:
     p.add_argument("fdc_ids", nargs="+", help="FDC IDs (up to 20)")
     p.add_argument("--format", choices=["abridged", "full"], default=None, help="Response format")
     p.add_argument("--nutrients", default=None, help="Comma-separated nutrient numbers (e.g. 203,204)")
+    p.add_argument("--json", action="store_true", help="Output as JSON (for scripts/agents)")
     p.set_defaults(func=cmd_get_multi)
 
     # list
@@ -490,6 +523,7 @@ Examples:
                    choices=["dataType.keyword", "lowercaseDescription.keyword", "fdcId", "publishedDate"],
                    help="Sort field")
     p.add_argument("--sort-order", default=None, choices=["asc", "desc"], help="Sort direction")
+    p.add_argument("--json", action="store_true", help="Output as JSON (for scripts/agents)")
     p.set_defaults(func=cmd_list)
 
     # nutrients
@@ -500,6 +534,7 @@ Examples:
                    help="Sort order (default: by nutrient number)")
     p.add_argument("--codes", action="store_true",
                    help="Show the nutrient code (number) and full name instead of short labels")
+    p.add_argument("--json", action="store_true", help="Output as JSON (for scripts/agents)")
     p.set_defaults(func=cmd_nutrients)
 
     # codes
@@ -508,6 +543,7 @@ Examples:
                    help="Optional search term to filter by code or name (e.g. 'fiber', 'vitamin')")
     p.add_argument("--sort", default="number", choices=["number", "name"],
                    help="Sort order (default: by code number)")
+    p.add_argument("--json", action="store_true", help="Output as JSON (for scripts/agents)")
     p.set_defaults(func=cmd_codes)
 
     args = parser.parse_args()
