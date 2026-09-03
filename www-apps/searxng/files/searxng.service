@@ -1,0 +1,29 @@
+[Unit]
+Description=SearXNG Metasearch Engine
+After=network.target valkey.service
+Wants=valkey.service
+
+[Service]
+Type=exec
+User=searxng
+Group=searxng
+RuntimeDirectory=searxng
+
+ExecStart=/usr/bin/uwsgi --ini /etc/uwsgi/searxng.ini
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGQUIT
+TimeoutStopSec=30
+
+# Environment
+Environment=SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml
+Environment=PYTHONUNBUFFERED=1
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/searxng /usr/lib/searxng/run
+
+[Install]
+WantedBy=multi-user.target

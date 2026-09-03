@@ -1,0 +1,27 @@
+#!/bin/bash
+# Ollama live update — called by Portage on emerge
+# Downloads and runs the official install.sh
+set -euo pipefail
+
+TMPDIR=$(mktemp -d)
+trap 'rm -rf "$TMPDIR"' EXIT
+
+CURRENT=""
+if command -v ollama &>/dev/null; then
+    CURRENT=$(ollama --version 2>/dev/null || echo "unknown")
+fi
+
+echo ">>> Fetching latest Ollama..."
+curl -fsSL "https://ollama.com/install.sh" -o "${TMPDIR}/install.sh"
+chmod +x "${TMPDIR}/install.sh"
+
+# Run install.sh — it handles cleanup of old libs and service restart
+bash "${TMPDIR}/install.sh"
+
+NEW=$(ollama --version 2>/dev/null || echo "unknown")
+
+if [ "$CURRENT" != "$NEW" ]; then
+    echo ">>> Ollama updated: ${CURRENT} -> ${NEW}"
+else
+    echo ">>> Ollama already at latest: ${NEW}"
+fi

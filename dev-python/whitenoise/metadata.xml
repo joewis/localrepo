@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>joerg@local</email>
+		<name>Joerg</name>
+	</maintainer>
+	<upstream>
+		<remote-id type="github">evansd/whitenoise</remote-id>
+	</upstream>
+</pkgmetadata>

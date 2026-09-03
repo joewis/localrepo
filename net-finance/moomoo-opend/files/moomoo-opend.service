@@ -1,0 +1,17 @@
+[Unit]
+Description=Moomoo OpenD API gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=openclaw
+Group=openclaw
+ExecStart=/opt/moomoo-opend/OpenD -cfg_file=/home/openclaw/.config/moomoo-opend/OpenD.xml -log_path=/home/openclaw/.local/state/moomoo-opend/logs
+WorkingDirectory=/opt/moomoo-opend
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=65536
+
+[Install]
+WantedBy=default.target

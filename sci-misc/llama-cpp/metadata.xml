@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>joerg@example.com</email>
+		<name>Joerg</name>
+	</maintainer>
+	<maintainer type="project">
+		<email>proxy-maintainers@gentoo.org</email>
+		<name>Proxy Maintainers</name>
+	</maintainer>
+	<longdescription>
+		llama.cpp enables LLM inference with minimal setup and state-of-the-art
+		performance on a wide range of hardware. It's a plain C/C++ implementation
+		with no external dependencies, supporting various CPU instruction sets
+		(AVX, AVX2, AVX512, ARM NEON), GPU backends (CUDA, Vulkan, OpenCL, ROCm),
+		and multiple quantization formats.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">ggml-org/llama.cpp</remote-id>
+	</upstream>
+</pkgmetadata>

@@ -1,0 +1,76 @@
+###
+# SearXNG settings for Gentoo
+# Override with env vars: SEARXNG_DEBUG, SEARXNG_SECRET, SEARXNG_VALKEY_URL, etc.
+###
+
+general:
+  debug: false
+  instance_name: "SearXNG"
+  privacypolicy_url: false
+  donation_url: false
+  contact_url: false
+  enable_metrics: true
+  open_metrics: ''
+
+brand:
+  docs_url: https://docs.searxng.org/
+  public_instances: https://searx.space
+  wiki_url: https://github.com/searxng/searxng/wiki
+  issue_url: https://github.com/searxng/searxng/issues
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  autocomplete_min: 4
+  formats:
+    - html
+    - json
+
+server:
+  port: 8888
+  bind_address: "127.0.0.1"
+  secret_key: "ultrasecretkey"
+  base_url: false
+  limiter: false
+  image_proxy: false
+  # method: "GET"  # or "POST"
+  default_http_headers:
+    X-Content-Type-Options: nosniff
+    X-XSS-Protection: 1; mode=block
+    X-Robots-Tag: noindex, nofollow
+    Referrer-Policy: no-referrer
+
+ui:
+  static_use_hash: true
+  default_theme: simple
+  default_locale: ""
+  default_categories: general
+  theme_args:
+    simple_style: auto
+
+valkey:
+  url: false
+
+enabled_plugins:
+  - "Hash plugin"
+  - "Self Information"
+  - "Tracker URL removed"
+  - "Ahmia blacklist"
+  - "Oembed plugin"
+
+disabled_plugins:
+  - "Hostname replace"
+  - "Open URL"
+  - "Search on category select"
+
+# Engines are auto-detected from searx/engines/*.py
+# See https://docs.searxng.org/admin/engines/ for full list
+
+outgoing:
+  request_timeout: 5.0
+  max_request_timeout: 10.0
+  useragent_suffix: ""
+  # If you need to use a HTTP/SOCKS proxy:
+  # proxies:
+  #   all://:
+  #     proxy_url: socks5h://proxy:1080

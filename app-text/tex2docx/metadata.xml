@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>joerg@local</email>
+		<name>Joerg</name>
+	</maintainer>
+	<longdescription>
+		Python + pandoc workflow to convert .tex files to .docx, addressing
+		limitations in pandoc's native conversion (equation/table/figure
+		numbering and cross-references).
+	</longdescription>
+	<upstream>
+		<remote-id type="github">jay-dennis/tex2docx</remote-id>
+	</upstream>
+</pkgmetadata>

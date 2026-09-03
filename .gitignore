@@ -1,0 +1,4 @@
+# Generated / local-only content — never commit to a public overlay
+distfiles/
+metadata/md5-cache/
+*.ebuild.new

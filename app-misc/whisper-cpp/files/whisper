@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+# whisper — shared transcription wrapper for whisper.cpp
+#
+# Two execution paths:
+#   1. Model == daemon's loaded model (default: small) → POST to the shared
+#      whisper-server daemon (systemd, :8090). One model resident, shared by all agents.
+#   2. Model != daemon model → one-shot `whisper-cli` with the requested GGML model
+#      file. Loads that model, transcribes, exits. No permanent memory cost.
+#
+# Models live in /opt/whisper/models/ggml-<name>.bin. Drop a new one in and the
+# wrapper picks it up automatically (tiny, base, small, medium, large-v3-turbo).
+#
+# Usage (openai-whisper-compatible flags):
+#   whisper audio.webm [--model small] [--language en] [--output_format txt|json|srt|vtt|tsv]
+#                      [--output_dir DIR] [--task translate]
+#
+set -euo pipefail
+
+SERVER="${WHISPER_SERVER:-http://127.0.0.1:8090}"
+DAEMON_MODEL="${WHISPER_DAEMON_MODEL:-small}"   # what the daemon holds resident
+MODEL="${WHISPER_MODEL:-small}"
+LANGUAGE=""
+OUTPUT_DIR=""
+OUTPUT_FORMAT="txt"
+TASK="transcribe"
+
+MODELS_DIR="/opt/whisper/models"
+
+# Parse args: positional input file first, then flags (lenient — skip unknown flags + value).
+args=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --model)            MODEL="${2:-small}"; shift 2 ;;
+        --model_dir)        shift 2 ;;
+        --device)           shift 2 ;;
+        --fp16|--fp32)      shift ;;
+        --language)         LANGUAGE="${2:-}"; shift 2 ;;
+        --task)             TASK="${2:-transcribe}"; shift 2 ;;
+        --output_dir)       OUTPUT_DIR="${2:-.}"; shift 2 ;;
+        --output_format)    OUTPUT_FORMAT="${2:-txt}"; shift 2 ;;
+        --prompt|-p)        shift 2 ;;
+        -h|--help)          cat <<'HELP'
+whisper (shared) — transcribe audio via whisper.cpp
+
+Usage: whisper <audio> [options]
+
+Models available: tiny, base, small (daemon default), medium, large-v3-turbo
+
+Options:
+  --model <name>     Which model to use (default: small)
+                     small   → shared daemon (:8090), resident, fastest
+                     others  → one-shot whisper-cli with that GGML model
+  --language <code>  Force language (e.g. en, zh, yue)
+  --task <mode>      transcribe (default) | translate
+  --output_format FMT txt | json | srt | vtt | tsv   (default: txt)
+  --output_dir DIR   Write output to DIR (default: stdout)
+
+Any audio ffmpeg can read: mp3, m4a, ogg, webm, wav, flac, mp4.
+HELP
+        exit 0 ;;
+        --)                 shift ;;
+        -*)                 shift 2 ;;   # skip unknown flags + their value
+        *)                  args+=("$1"); shift ;;
+    esac
+done
+
+[[ ${#args[@]} -ge 1 ]] || { echo "error: no input file" >&2; exit 1; }
+input="${args[0]}"
+
+# Normalize model name (accept large-v3-turbo or large-v3-turbo → filename form).
+model_file="${MODELS_DIR}/ggml-${MODEL}.bin"
+
+# Resolve output filename stem from the input.
+stem="$(basename "${input%.*}")"
+
+# Map output_format → file extension for the one-shot path.
+case "$OUTPUT_FORMAT" in
+    json) ext="json" ;;
+    srt)  ext="srt" ;;
+    vtt)  ext="vtt" ;;
+    tsv)  ext="tsv" ;;
+    *)    ext="txt" ;;
+esac
+
+emit() {  # $1 = temp file to place
+    if [[ "$OUTPUT_DIR" != "" ]]; then
+        local outfile="${OUTPUT_DIR%/}/${stem}.${ext}"
+        mkdir -p "$OUTPUT_DIR"
+        cp "$1" "$outfile"
+        echo "$outfile"
+    else
+        cat "$1"
+    fi
+}
+
+# Convert input to 16kHz mono WAV once, up front (used by both paths).
+wav="$(mktemp --suffix=.wav)"
+trap 'rm -f "$wav"' EXIT
+ffmpeg -y -i "$input" -ar 16000 -ac 1 -c:a pcm_s16le "$wav" >/dev/null 2>&1
+
+# ---- Path 1: model matches daemon → shared server ----
+if [[ "$MODEL" == "$DAEMON_MODEL" ]] || [[ -f "$model_file" && "$MODEL" == "$DAEMON_MODEL" ]]; then
+    # Server response_format: json→verbose_json (timestamps), else text.
+    case "$OUTPUT_FORMAT" in
+        json)   server_fmt="verbose_json" ;;
+        *)      server_fmt="text" ;;
+    esac
+
+    response="$(mktemp)"
+    curl -sf -X POST "${SERVER}/inference" \
+        -F "file=@${wav}" \
+        -F "language=${LANGUAGE:-en}" \
+        -F "response_format=${server_fmt}" \
+        -o "$response" || { echo "error: whisper-server unreachable at ${SERVER}" >&2; exit 1; }
+    emit "$response"
+    exit 0
+fi
+
+# ---- Path 2: other model → one-shot whisper-cli ----
+if [[ ! -f "$model_file" ]]; then
+    echo "error: model '${MODEL}' not found (${model_file})." >&2
+    echo "available: $(cd "$MODELS_DIR" && ls ggml-*.bin 2>/dev/null | sed 's/^ggml-//; s/\.bin$//' | tr '\n' ' ')" >&2
+    exit 1
+fi
+
+outdir="$(mktemp -d)"
+trap 'rm -f "$wav"; rm -rf "$outdir"' EXIT
+
+# whisper-cli output flags: -oXXX selects format, -of gives the file path (can include dir).
+fmt_flag=""
+case "$OUTPUT_FORMAT" in
+    json) fmt_flag="-oj" ;;
+    srt)  fmt_flag="-osrt" ;;
+    vtt)  fmt_flag="-ovtt" ;;
+    tsv|txt) fmt_flag="-otxt" ;;  # tsv unsupported by whisper-cli; fall back to txt
+    *)    fmt_flag="-otxt" ;;
+esac
+
+cli_cmd=(/usr/bin/whisper-cli -m "$model_file" -f "$wav" -nt -t 8 "$fmt_flag" -of "${outdir}/${stem}")
+if [[ -n "$LANGUAGE" ]]; then
+    cli_cmd+=( -l "$LANGUAGE" )
+fi
+if [[ "$TASK" == "translate" ]]; then
+    cli_cmd+=( -tr )
+fi
+
+if ! "${cli_cmd[@]}" >/dev/null 2>&1; then
+    echo "error: whisper-cli failed for model '${MODEL}'" >&2
+    exit 1
+fi
+
+outfile="${outdir}/${stem}.${ext}"
+
+# Normalize one-shot whisper-cli JSON → daemon-compatible shape.
+# whisper-cli emits {transcription:[{offsets:{from,to}, text}]}; the daemon emits
+# {segments:[{start,end,text}]}. Kiko's postprocess and Marco's summarize parse
+# `segments`, so convert so `--model <non-daemon>` doesn't break them.
+if [[ "$OUTPUT_FORMAT" == "json" && -f "$outfile" ]]; then
+    normalized="$(mktemp)"
+    python3 - "$outfile" "$normalized" <<'PYEOF'
+import json, sys
+src, dst = sys.argv[1], sys.argv[2]
+with open(src) as f:
+    d = json.load(f)
+segments = []
+for seg in d.get("transcription", []):
+    offs = seg.get("offsets", {})
+    segments.append({
+        "start": offs.get("from", 0) / 1000.0,
+        "end": offs.get("to", 0) / 1000.0,
+        "text": seg.get("text", ""),
+    })
+out = {
+    "task": "transcribe",
+    "language": d.get("result", {}).get("language", ""),
+    "duration": (segments[-1]["end"] if segments else 0),
+    "text": "".join(s["text"] for s in segments).strip(),
+    "segments": segments,
+}
+with open(dst, "w") as f:
+    json.dump(out, f)
+PYEOF
+    outfile="$normalized"
+fi
+
+if [[ -f "$outfile" ]]; then
+    emit "$outfile"
+else
+    echo "error: whisper-cli produced no ${ext} output" >&2
+    exit 1
+fi
