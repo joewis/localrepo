@@ -7,8 +7,8 @@ inherit cmake
 
 DESCRIPTION="LLM inference in C/C++ — llama.cpp"
 HOMEPAGE="https://github.com/ggml-org/llama.cpp"
-SRC_URI="https://github.com/ggml-org/llama.cpp/archive/refs/tags/b${PV}.tar.gz -> ${P}.tar.gz"
-S="${WORKDIR}/llama.cpp-b${PV}"
+SRC_URI="https://github.com/ggml-org/llama.cpp/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
+S="${WORKDIR}/llama.cpp-${PV}"
 
 LICENSE="MIT"
 SLOT="0"
@@ -91,9 +91,6 @@ src_configure() {
 
 		# Skip RPATH fiddling for Gentoo
 		-DCMAKE_SKIP_BUILD_RPATH=ON
-
-		# Build number for version string
-		-DBUILD_NUMBER="${PV}"
 	)
 
 	if use cuda; then
@@ -139,7 +136,7 @@ pkg_postinst() {
 		elog "  https://github.com/ggml-org/llama.cpp/releases"
 		elog ""
 		elog "Look for the 'llama-ui-<version>.tar.gz' asset attached to"
-		elog "the release matching your installed version (b${PV})."
+		elog "the release matching your installed version (v${PV})."
 		elog ""
 		elog "Extract it and serve with --path:"
 		elog "  mkdir -p /usr/share/llama.cpp/ui"
