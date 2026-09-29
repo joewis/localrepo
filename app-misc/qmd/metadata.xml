@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>carl@gentoo.local</email>
+		<name>Carl</name>
+	</maintainer>
+	<longdescription lang="en">
+		qmd (Quick Markdown Search) indexes markdown collections into a SQLite
+		index and supports BM25, vector and hybrid retrieval with re-ranking.
+
+		This localrepo package is built from the joewis fork of upstream 2.8.3,
+		which adds an optional models.remote: block so that embeddings and
+		re-ranking can be served by a cloud endpoint. A remote failure skips the
+		affected layer rather than substituting the local model, so a provider
+		outage degrades result quality, not availability or latency.
+
+		It ships as a prepared runtime bundle (dist plus production
+		node_modules) and installs to the same path a global npm install used,
+		so existing wrappers and systemd units keep working.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">joewis/qmd</remote-id>
+	</upstream>
+</pkgmetadata>
