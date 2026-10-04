@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+"""camofox — CLI wrapper for the local Camoufox browser daemon (127.0.0.1:9377).
+
+Wraps the camofox-browser HTTP API so the agent can drive the anti-detection
+browser without remembering endpoints. The daemon is a systemd service
+(camofox.service); the browser engine may idle-stop while the service stays
+active — use `camofox start` to relaunch it.
+
+Usage:
+  camofox health                 # daemon + browser engine status
+  camofox start                  # relaunch the browser engine if idle-stopped
+  camofox stop                    # stop the browser engine
+  camofox tab <url> [--key K]     # open a tab (returns tabId); default sessionKey 'default'
+  camofox nav <tabId> <url>       # navigate an existing tab
+  camofox snap <tabId>            # text snapshot of a tab
+  camofox shot <tabId> [--out F]  # screenshot to file (default /tmp/camofox-<tab>.png)
+  camofox links <tabId>           # list links on a tab
+  camofox images <tabId>          # list images on a tab
+  camofox eval <tabId> <js>       # run JS in the page
+  camofox close <tabId>           # close a tab
+  camofox tabs                    # list active tabs
+  camofox transcript <url>        # YouTube transcript (POST /youtube/transcript)
+"""
+import argparse
+import json
+import sys
+import urllib.request
+
+BASE = "http://127.0.0.1:9377"
+USER = "carl"
+
+
+def _req(method, path, body=None, timeout=120, user=True):
+    # GET/DELETE endpoints need userId as a query param; POST takes it in body.
+    if user and method in ("GET", "DELETE") and "?" not in path:
+        path += f"?userId={USER}"
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(
+        f"{BASE}{path}", data=data, method=method,
+        headers={"Content-Type": "application/json"} if data else {},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.read().decode()[:300]}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _print(d):
+    print(json.dumps(d, indent=2))
+
+
+def main():
+    p = argparse.ArgumentParser(prog="camofox")
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sub.add_parser("health")
+    sub.add_parser("start")
+    sub.add_parser("stop")
+    sub.add_parser("tabs")
+
+    t = sub.add_parser("tab")
+    t.add_argument("url")
+    t.add_argument("--key", default="default")
+
+    n = sub.add_parser("nav")
+    n.add_argument("tab")
+    n.add_argument("url")
+
+    s = sub.add_parser("snap")
+    s.add_argument("tab")
+
+    sh = sub.add_parser("shot")
+    sh.add_argument("tab")
+    sh.add_argument("--out")
+
+    lk = sub.add_parser("links")
+    lk.add_argument("tab")
+
+    im = sub.add_parser("images")
+    im.add_argument("tab")
+
+    ev = sub.add_parser("eval")
+    ev.add_argument("tab")
+    ev.add_argument("js")
+
+    cl = sub.add_parser("close")
+    cl.add_argument("tab")
+
+    tr = sub.add_parser("transcript")
+    tr.add_argument("url")
+
+    a = p.parse_args()
+
+    if a.cmd == "health":
+        _print(_req("GET", "/health"))
+    elif a.cmd == "start":
+        _print(_req("POST", "/start"))
+    elif a.cmd == "stop":
+        _print(_req("POST", "/stop"))
+    elif a.cmd == "tabs":
+        _print(_req("GET", "/tabs"))
+    elif a.cmd == "tab":
+        _print(_req("POST", "/tabs", {"userId": USER, "sessionKey": a.key, "url": a.url}))
+    elif a.cmd == "nav":
+        _print(_req("POST", f"/tabs/{a.tab}/navigate", {"userId": USER, "url": a.url}))
+    elif a.cmd == "snap":
+        _print(_req("GET", f"/tabs/{a.tab}/snapshot"))
+    elif a.cmd == "shot":
+        out = a.out or f"/tmp/camofox-{a.tab}.png"
+        # screenshot returns raw PNG bytes, not JSON
+        try:
+            req = urllib.request.Request(f"{BASE}/tabs/{a.tab}/screenshot?userId={USER}")
+            with urllib.request.urlopen(req, timeout=120) as r:
+                data = r.read()
+            if data[:8] == b"\x89PNG\r\n\x1a\n":
+                with open(out, "wb") as f:
+                    f.write(data)
+                print(f"saved: {out}")
+            else:
+                # not a PNG — likely a JSON error
+                try:
+                    _print(json.loads(data.decode()))
+                except Exception:
+                    print(data[:300].decode(errors="replace"))
+        except urllib.error.HTTPError as e:
+            _print({"error": f"HTTP {e.code}: {e.read().decode()[:300]}"})
+        except Exception as e:
+            _print({"error": str(e)})
+    elif a.cmd == "links":
+        _print(_req("GET", f"/tabs/{a.tab}/links"))
+    elif a.cmd == "images":
+        _print(_req("GET", f"/tabs/{a.tab}/images"))
+    elif a.cmd == "eval":
+        _print(_req("POST", f"/tabs/{a.tab}/evaluate", {"userId": USER, "expression": a.js}))
+    elif a.cmd == "close":
+        _print(_req("DELETE", f"/tabs/{a.tab}"))
+    elif a.cmd == "transcript":
+        _print(_req("POST", "/youtube/transcript", {"url": a.url}))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,22 @@
+[Unit]
+Description=Camofox anti-detection browser server (HTTP control API on 127.0.0.1:9377)
+After=network.target
+
+[Service]
+Type=simple
+User=carl
+Group=carl
+
+# The daemon keeps its own state under the user's home; the code is packaged.
+WorkingDirectory=/usr/lib64/node_modules/@askjo/camofox-browser
+
+Environment=CAMOFOX_CRASH_REPORT_ENABLED=false
+Environment=CAMOFOX_BIND_HOST=127.0.0.1
+
+ExecStart=/usr/bin/node /usr/lib64/node_modules/@askjo/camofox-browser/server.js
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

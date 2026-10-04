@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>carl@gentoo.local</email>
+		<name>Carl</name>
+	</maintainer>
+	<longdescription lang="en">
+		camofox runs the Camoufox anti-detection browser (a Firefox fork with
+		fingerprint spoofing) behind a local HTTP control API, so an agent can
+		drive real pages without a detection stack noticing an automated
+		browser. The `camofox` CLI wraps that API for shell use.
+
+		This localrepo package ships a prepared runtime bundle of
+		@askjo/camofox-browser plus its production node_modules, installed to
+		the same path a global npm install uses. ::gentoo has no npm eclass, so
+		a source ebuild would have to resolve the dependency tree from the
+		network on every merge; the pinned bundle hash gives the same
+		reproducibility without that.
+
+		The Camoufox browser binary itself is a version-pinned runtime
+		download cached under ~/.cache/camoufox (about 1.3 GB). It is treated
+		as a cache rather than a packaged artifact because upstream bumps it
+		frequently and camoufox-js pins the expected build in-process.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">jo-inc/camofox-browser</remote-id>
+	</upstream>
+</pkgmetadata>
