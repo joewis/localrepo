@@ -1,27 +1,86 @@
 #!/bin/bash
-# Ollama live update — called by Portage on emerge
-# Downloads and runs the official install.sh
+# Ollama update runner -- invoked by Portage from pkg_postinst().
+#
+# WHY THIS EXISTS
+# Ollama publishes precompiled bundles installed by upstream's own shell
+# installer, which decides the on-disk layout (binary + a lib/ollama tree of
+# ggml/llama shared objects). A normal src_install would have to re-implement
+# that bundling and would drift from upstream, so the package owns the runner
+# and the systemd unit only, and delegates the payload.
+#
+# WHY THE VERSION IS PINNED
+# The ebuild passes OLLAMA_VERSION=${PV}. Fetching install.sh unpinned installs
+# whatever is live at that moment, which is not reproducible: a broken release
+# cannot be avoided or reverted by re-emerging, which is the failure mode that
+# made past Ollama updates unreliable. Pinning makes:
+#   - a version bump in the ebuild an actual bump
+#   - re-emerging the same version reinstall the same release
+#   - a bad release skippable by staying on the previous ebuild
+# Upstream honours this: install.sh appends ?version=<ver> to its download URL
+# on the Linux path, and ollama.com resolves that to the exact release asset.
+#
+# WHY THE CHECKSUM
+# install.sh is verified against sha256sum.txt published with the SAME release.
+# That catches a truncated or corrupted download and records exactly which
+# script ran. It does NOT verify the payload tarball: upstream's installer does
+# not checksum it, so payload integrity rests on HTTPS and upstream's own
+# pipeline. Stated plainly rather than implied.
 set -euo pipefail
+
+VERSION="${OLLAMA_VERSION:-}"
+REPO="https://github.com/ollama/ollama/releases/download"
+
+if [ -z "$VERSION" ] || [ "$VERSION" = "9999" ]; then
+	echo ">>> WARNING: no version pin (OLLAMA_VERSION='${VERSION:-<unset>}') -- installing LATEST." >&2
+	echo ">>> This is the non-reproducible path. Prefer a versioned ebuild." >&2
+	TAG="latest/download"
+	VERIFY=0
+else
+	TAG="download/v${VERSION}"
+	VERIFY=1
+fi
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-CURRENT=""
-if command -v ollama &>/dev/null; then
-    CURRENT=$(ollama --version 2>/dev/null || echo "unknown")
+echo ">>> Fetching Ollama installer (${VERSION:-latest})..."
+curl -fsSL "${REPO}/${TAG}/install.sh" -o "${TMPDIR}/install.sh"
+
+if [ "$VERIFY" = "1" ]; then
+	if ! curl -fsSL "${REPO}/${TAG}/sha256sum.txt" -o "${TMPDIR}/sha256sum.txt"; then
+		echo ">>> ERROR: no sha256sum.txt published for v${VERSION}." >&2
+		echo "    Refusing to run an unverified installer (fail closed)." >&2
+		exit 1
+	fi
+
+	want=$(awk '$2 == "./install.sh" {print $1}' "${TMPDIR}/sha256sum.txt")
+	if [ -z "$want" ]; then
+		echo ">>> ERROR: sha256sum.txt for v${VERSION} does not list install.sh." >&2
+		exit 1
+	fi
+
+	got=$(sha256sum "${TMPDIR}/install.sh" | awk '{print $1}')
+	if [ "$want" != "$got" ]; then
+		echo ">>> ERROR: install.sh checksum mismatch for v${VERSION}" >&2
+		echo "      expected ${want}" >&2
+		echo "      got      ${got}" >&2
+		exit 1
+	fi
+	echo ">>> Verified install.sh against v${VERSION} sha256sum.txt"
 fi
 
-echo ">>> Fetching latest Ollama..."
-curl -fsSL "https://ollama.com/install.sh" -o "${TMPDIR}/install.sh"
 chmod +x "${TMPDIR}/install.sh"
 
-# Run install.sh — it handles cleanup of old libs and service restart
-bash "${TMPDIR}/install.sh"
+CURRENT=$(ollama --version 2>/dev/null || echo "unknown")
+
+# OLLAMA_VERSION selects the payload: install.sh's Linux path appends it as
+# ?version=<ver>. Empty means latest, which is the unpinned path above.
+OLLAMA_VERSION="${VERSION}" bash "${TMPDIR}/install.sh"
 
 NEW=$(ollama --version 2>/dev/null || echo "unknown")
 
 if [ "$CURRENT" != "$NEW" ]; then
-    echo ">>> Ollama updated: ${CURRENT} -> ${NEW}"
+	echo ">>> Ollama updated: ${CURRENT} -> ${NEW}"
 else
-    echo ">>> Ollama already at latest: ${NEW}"
+	echo ">>> Ollama already at ${NEW}"
 fi
