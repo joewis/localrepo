@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<upstream>
+		<remote-id type="github">joewis/xiaomi-devices</remote-id>
+	</upstream>
+	<maintainer type="person">
+		<email>carl@elitedesk.local</email>
+		<name>Carl Hermes</name>
+	</maintainer>
+	<longdescription>
+		Tools for Xiaomi-ecosystem robot vacuums. Local control over the LAN via miIO
+		(status, control actions, room-targeted cleaning by name) and map retrieval from
+		the Xiaomi cloud (the map is a file in the account object store, not a device
+		property). An MCP server exposes the local half to agents.
+
+		The command surface is split along a lifecycle boundary: the local and MCP paths
+		never prompt, while the cloud login needs a captcha, an emailed code or a QR
+		scan. That is enforced by dependency, so an always-on service cannot block on a
+		human prompt.
+	</longdescription>
+</pkgmetadata>
