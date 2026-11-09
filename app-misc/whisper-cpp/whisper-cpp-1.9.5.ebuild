@@ -28,6 +28,10 @@ src_configure() {
 
 src_install() {
 	cmake_src_install
+	# ggml's CMake package config belongs to sci-misc/llama-cpp; a second
+	# copy here collides with it and two owners of one path cannot merge.
+	# whisper consumes ggml, it does not provide it.
+	rm -rf "${ED}/usr/$(get_libdir)/cmake/ggml" || die
 	# CMake install() rules already place libwhisper, libparakeet,
 	# whisper-cli, whisper-server and quantize helpers into standard
 	# locations. Nothing extra needed beyond docs.
