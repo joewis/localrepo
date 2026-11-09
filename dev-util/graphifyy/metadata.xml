@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+    <upstream>
+        <remote-id type="github">Graphify-Labs/graphify</remote-id>
+        <remote-id type="pypi">graphifyy</remote-id>
+    </upstream>
+    <maintainer type="person">
+        <email>carl@elitedesk.local</email>
+        <name>Carl Hermes</name>
+    </maintainer>
+</pkgmetadata>
