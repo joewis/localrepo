@@ -2,8 +2,8 @@
 # whisper — shared transcription wrapper for whisper.cpp
 #
 # Two execution paths:
-#   1. Model == daemon's loaded model (default: small) → POST to the shared
-#      whisper-server daemon (systemd, :8090). One model resident, shared by all agents.
+#   1. Model == daemon's loaded model (default: large-v3-turbo) → POST to the
+#      shared STT daemon (systemd socket on :8090, OpenVINO, one model resident).
 #   2. Model != daemon model → one-shot `whisper-cli` with the requested GGML model
 #      file. Loads that model, transcribes, exits. No permanent memory cost.
 #
@@ -17,8 +17,8 @@
 set -euo pipefail
 
 SERVER="${WHISPER_SERVER:-http://127.0.0.1:8090}"
-DAEMON_MODEL="${WHISPER_DAEMON_MODEL:-small}"   # what the daemon holds resident
-MODEL="${WHISPER_MODEL:-small}"
+DAEMON_MODEL="${WHISPER_DAEMON_MODEL:-large-v3-turbo}"   # what the daemon holds resident
+MODEL="${WHISPER_MODEL:-${DAEMON_MODEL}}"
 LANGUAGE=""
 OUTPUT_DIR=""
 OUTPUT_FORMAT="txt"
@@ -30,7 +30,7 @@ MODELS_DIR="/opt/whisper/models"
 args=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --model)            MODEL="${2:-small}"; shift 2 ;;
+        --model)            MODEL="${2:-${DAEMON_MODEL}}"; shift 2 ;;
         --model_dir)        shift 2 ;;
         --device)           shift 2 ;;
         --fp16|--fp32)      shift ;;
@@ -44,12 +44,13 @@ whisper (shared) — transcribe audio via whisper.cpp
 
 Usage: whisper <audio> [options]
 
-Models available: tiny, base, small (daemon default), medium, large-v3-turbo
+Models available: tiny, base, small, medium, large-v3-turbo (daemon default)
 
 Options:
-  --model <name>     Which model to use (default: small)
-                     small   → shared daemon (:8090), resident, fastest
-                     others  → one-shot whisper-cli with that GGML model
+  --model <name>     Which model to use (default: large-v3-turbo)
+                     large-v3-turbo → shared OpenVINO daemon (:8090), resident,
+                                      most accurate (5.6% WER measured)
+                     others        → one-shot whisper-cli with that GGML model
   --language <code>  Force language (e.g. en, zh, yue)
   --task <mode>      transcribe (default) | translate
   --output_format FMT txt | json | srt | vtt | tsv   (default: txt)
